@@ -1,0 +1,4 @@
+
+#globals.css update if needed?
+# Actually Tailwind classes are sufficient.
+# I'll just verify the server works later.

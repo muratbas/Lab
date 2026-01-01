@@ -1,0 +1,12 @@
+"use client";
+
+import { io, type Socket } from "socket.io-client";
+
+let socket: Socket;
+
+export const getSocket = () => {
+  if (!socket) {
+    socket = io();
+  }
+  return socket;
+};
