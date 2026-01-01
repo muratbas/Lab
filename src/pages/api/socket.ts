@@ -1,5 +1,7 @@
 import { Server } from "socket.io";
 
+const rooms = new Map();
+
 const SocketHandler = (req: any, res: any) => {
   if (res.socket.server.io) {
     console.log('Socket is already running');
@@ -12,8 +14,6 @@ const SocketHandler = (req: any, res: any) => {
     addTrailingSlash: false,
   });
   res.socket.server.io = io;
-
-  const rooms = new Map();
 
   io.on("connection", (socket) => {
     socket.on("create-room", (playerName) => {

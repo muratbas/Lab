@@ -12,7 +12,10 @@ const handle = app.getRequestHandler();
 
 app.prepare().then(() => {
   const httpServer = createServer(handle);
-  const io = new Server(httpServer);
+  const io = new Server(httpServer, {
+    path: "/api/socket/io",
+    addTrailingSlash: false,
+  });
 
   // Game/Room State (In-Memory for now)
   const rooms = new Map(); // roomId -> { players: [], gameState: {} }
