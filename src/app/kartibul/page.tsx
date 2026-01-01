@@ -42,14 +42,22 @@ function GameContent() {
 
   // Fetch cards
   useEffect(() => {
-    // Vercel için sunucuyu uyandır
-    fetch("/api/socket").catch(() => null);
+    socket.connect(); 
+
+    // Vercel fallback: If connection fails, try to wake up the server
+    const onConnectError = () => {
+        fetch("/api/socket").catch(() => null);
+    };
     
-    socket.connect(); // Connect explicitly
+    socket.on("connect_error", onConnectError);
 
     fetch("/api/cards")
       .then((res) => res.json())
       .then((data) => setAllCards(data));
+      
+    return () => {
+         socket.off("connect_error", onConnectError);
+    };
   }, []);
 
   // Socket Listeners
