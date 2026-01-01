@@ -16,6 +16,7 @@ app.prepare().then(() => {
     path: "/api/socket/io",
     addTrailingSlash: false,
   });
+  httpServer.io = io;
 
   // Game/Room State (In-Memory for now)
   const rooms = new Map(); // roomId -> { players: [], gameState: {} }

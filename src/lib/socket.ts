@@ -9,6 +9,7 @@ export const getSocket = () => {
     socket = io({
       path: "/api/socket/io",
       addTrailingSlash: false,
+      autoConnect: false,
     });
   }
   return socket;

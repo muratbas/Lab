@@ -40,11 +40,12 @@ function GameContent() {
 
   // ... (useEffect deps logic remains same)
 
-  // Fetch cards and init socket
+  // Fetch cards
   useEffect(() => {
-    fetch("/api/socket").finally(() => { 
-        // Socket init trigger
-    });
+    // Vercel için sunucuyu uyandır
+    fetch("/api/socket").catch(() => null);
+    
+    socket.connect(); // Connect explicitly
 
     fetch("/api/cards")
       .then((res) => res.json())
