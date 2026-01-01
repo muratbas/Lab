@@ -196,6 +196,11 @@ app.prepare().then(() => {
         const room = rooms.get(roomId);
         if (!room) return;
         
+        if (!allCards || !Array.isArray(allCards) || allCards.length === 0) {
+            console.error("Missing cards for restart");
+            return;
+        }
+        
         // Reset ready stats
         room.players.forEach(p => p.ready = false);
         

@@ -29,25 +29,25 @@ function GameContent() {
   const [turnPlayerId, setTurnPlayerId] = useState<string | null>(null);
   const [isGuessingMode, setIsGuessingMode] = useState(false);
   const [gameOverData, setGameOverData] = useState<any>(null); // { winnerId, player1, player2 }
+  const [restartStatus, setRestartStatus] = useState("");
+  const [opponentReadyMessage, setOpponentReadyMessage] = useState("");
 
   const socket = getSocket();
   const searchParams = useSearchParams();
 
   const isMyTurn = turnPlayerId === socket.id;
 
-  // Initialize from URL only once
-  useEffect(() => {
-    const urlRoom = searchParams.get("room");
-    if (urlRoom) {
-      setInputCode(urlRoom);
-    }
-  }, []);
+  // ... (useEffect deps logic remains same)
 
+  // Fetch cards only once on mount
   useEffect(() => {
     fetch("/api/cards")
       .then((res) => res.json())
       .then((data) => setAllCards(data));
+  }, []);
 
+  // Socket Listeners
+  useEffect(() => {
     socket.on("room-created", (code: string) => {
       setRoomCode(code);
       setIsCreator(true);
@@ -80,6 +80,8 @@ function GameContent() {
       setEliminatedCards(new Set());
       setGameOverData(null);
       setIsGuessingMode(false);
+      setRestartStatus(""); 
+      setOpponentReadyMessage("");
     });
 
     socket.on("turn-update", (nextPlayerId: string) => {
@@ -91,11 +93,22 @@ function GameContent() {
         setGameState("ENDED");
     });
 
-    socket.on("restart-requested", () => {
-        // Only creator receives this, or ensure logic handles it
-        if (isCreator) {
-            socket.emit("start-game", { roomId: roomCode, allCards });
+    socket.on("player-status-update", ({ readyPlayerId, message }: { readyPlayerId: string, message: string }) => {
+        if (readyPlayerId === socket.id) {
+             setRestartStatus("Diğer oyuncu bekleniyor...");
+        } else {
+             setOpponentReadyMessage(message);
         }
+    });
+
+    socket.on("restart-loading", () => {
+         setRestartStatus("Oyun başlatılıyor...");
+         setOpponentReadyMessage("");
+         if (isCreator) {
+             socket.emit("request-restart-with-cards", { roomId: roomCode, allCards });
+         } else {
+             socket.emit("request-restart-with-cards", { roomId: roomCode, allCards });
+         }
     });
 
     return () => {
@@ -106,9 +119,11 @@ function GameContent() {
       socket.off("game-started");
       socket.off("turn-update");
       socket.off("game-over");
-      socket.off("restart-requested");
+      socket.off("player-status-update");
+      socket.off("restart-loading");
     };
-  }, []); // Run main listeners once. playerName dependency removed to avoid constant re-binding.
+  }, [isCreator, roomCode, allCards]);
+
 
   // Use a ref to access latest playerName in listeners if needed, 
   // but for creating room we just use the local state which is fine as "createRoom" function triggers the emit with the current state.
@@ -173,11 +188,9 @@ function GameContent() {
 
   const handleCardClick = (card: string) => {
     if (isGuessingMode) {
-        // Send guess
-        if (confirm("Bu kartı tahmin etmek istediğine emin misin? Yanlışsa kaybedersin!")) {
-             socket.emit("make-guess", { roomId: roomCode, guessedCard: card });
-             setIsGuessingMode(false);
-        }
+        // Send guess (Removed confirm as requested)
+        socket.emit("make-guess", { roomId: roomCode, guessedCard: card });
+        setIsGuessingMode(false);
     } else {
         // Toggle elimination locally
         const newEliminated = new Set(eliminatedCards);
@@ -191,6 +204,7 @@ function GameContent() {
   };
 
   const handleRestart = () => {
+      setRestartStatus("Diğer oyuncu bekleniyor...");
       socket.emit("restart-game", roomCode);
   };
 
@@ -314,31 +328,44 @@ function GameContent() {
       <div className="flex flex-col items-center justify-center mb-2 sticky top-2 z-20">
          {/* Center Target Card */}
          {targetCard && (
-            <div className={`transition-all duration-300 relative ${isTargetRevealed ? 'mb-2' : ''}`}>
-               {isTargetRevealed ? (
-                   <div 
-                      className="cursor-pointer relative group"
-                      onClick={() => setIsTargetRevealed(false)}
-                   >
-                     <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg whitespace-nowrap z-10">
-                        HEDEF KART
-                     </div>
-                     <Image 
-                       src={`/clash-royale-cards/${targetCard}`}
-                       width={80}
-                       height={100}
-                       alt="Target"
-                       className="rounded-lg shadow-2xl border-2 border-amber-400"
-                     />
-                   </div>
-               ) : (
-                   <button 
-                     onClick={() => setIsTargetRevealed(true)}
-                     className="bg-slate-800/80 backdrop-blur border border-amber-500/50 text-amber-500 px-4 py-2 rounded-full text-sm font-bold shadow-lg flex items-center gap-2"
-                   >
-                     <span>👁️ GÖSTER</span>
-                   </button>
-               )}
+            <div className="flex items-center gap-4">
+                
+                {/* Left Player Name */}
+                <div className={`text-xs font-bold ${isMyTurn ? 'text-green-400 scale-110' : 'text-slate-500'} transition-all`}>
+                    {playerName}
+                </div>
+
+                <div className={`transition-all duration-300 relative ${isTargetRevealed ? 'mb-2' : ''}`}>
+                {isTargetRevealed ? (
+                    <div 
+                        className="cursor-pointer relative group"
+                        onClick={() => setIsTargetRevealed(false)}
+                    >
+                        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-amber-500 text-slate-900 text-[10px] font-black px-2 py-0.5 rounded-full shadow-lg whitespace-nowrap z-10">
+                            HEDEF KART
+                        </div>
+                        <Image 
+                        src={`/clash-royale-cards/${targetCard}`}
+                        width={80}
+                        height={100}
+                        alt="Target"
+                        className="rounded-lg shadow-2xl border-2 border-amber-400"
+                        />
+                    </div>
+                ) : (
+                    <button 
+                        onClick={() => setIsTargetRevealed(true)}
+                        className="bg-slate-800/80 backdrop-blur border border-amber-500/50 text-amber-500 px-4 py-2 rounded-full text-sm font-bold shadow-lg flex items-center gap-2"
+                    >
+                        <span>👁️ GÖSTER</span>
+                    </button>
+                )}
+                </div>
+
+                {/* Right Player Name (Opponent) */}
+                 <div className={`text-xs font-bold ${!isMyTurn ? 'text-red-400 scale-110' : 'text-slate-500'} transition-all`}>
+                    {opponentName || "Rakip"}
+                </div>
             </div>
          )}
          
@@ -495,12 +522,34 @@ function GameContent() {
                       </div>
                   </div>
 
-                  <button
-                      onClick={handleRestart}
-                      className="w-full py-4 bg-white text-slate-900 rounded-xl font-bold text-lg hover:bg-slate-200 transition-colors active:scale-95"
-                  >
-                      TEKRAR OYNA ↻
-                  </button>
+                  <div className="space-y-3">
+                      <button
+                          onClick={handleRestart}
+                          disabled={restartStatus !== ""}
+                          className={`w-full py-4 rounded-xl font-bold text-lg transition-colors active:scale-95
+                             ${restartStatus !== "" 
+                                ? 'bg-slate-700 text-slate-400 cursor-wait' 
+                                : 'bg-white text-slate-900 hover:bg-slate-200'
+                             }
+                          `}
+                      >
+                          {restartStatus ? restartStatus : (opponentReadyMessage ? "KABUL ET VE OYNA" : "TEKRAR OYNA ↻")}
+                      </button>
+                      
+                      {opponentReadyMessage && !restartStatus && (
+                         <div className="flex items-center justify-center gap-2 text-green-400 text-sm animate-pulse font-bold">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"/>
+                            <p>{opponentReadyMessage}</p>
+                         </div>
+                      )}
+                      
+                      {restartStatus && (
+                         <div className="flex items-center justify-center gap-2 text-slate-400 text-sm animate-pulse">
+                            <div className="w-2 h-2 bg-slate-500 rounded-full"/>
+                            <p>Diğer oyuncu bekleniyor...</p>
+                         </div>
+                      )}
+                  </div>
               </div>
           </div>
       )}
