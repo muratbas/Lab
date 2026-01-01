@@ -39,8 +39,12 @@ function GameContent() {
 
   // ... (useEffect deps logic remains same)
 
-  // Fetch cards only once on mount
+  // Fetch cards and init socket
   useEffect(() => {
+    fetch("/api/socket").finally(() => { 
+        // Socket init trigger
+    });
+
     fetch("/api/cards")
       .then((res) => res.json())
       .then((data) => setAllCards(data));

@@ -6,7 +6,10 @@ let socket: Socket;
 
 export const getSocket = () => {
   if (!socket) {
-    socket = io();
+    socket = io({
+      path: "/api/socket/io",
+      addTrailingSlash: false,
+    });
   }
   return socket;
 };
