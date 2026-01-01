@@ -17,6 +17,7 @@ function GameContent() {
   const [playerCount, setPlayerCount] = useState(0);
   const [isCreator, setIsCreator] = useState(false);
   const [error, setError] = useState("");
+  const [isConnected, setIsConnected] = useState(false);
 
   // Game Data
   const [allCards, setAllCards] = useState<string[]>([]);
@@ -52,6 +53,15 @@ function GameContent() {
 
   // Socket Listeners
   useEffect(() => {
+    socket.on("connect", () => {
+      setIsConnected(true);
+      setError("");
+    });
+    socket.on("disconnect", () => {
+      setIsConnected(false);
+      setError("Bağlantı koptu. Yeniden bağlanılıyor...");
+    });
+
     socket.on("room-created", (code: string) => {
       setRoomCode(code);
       setIsCreator(true);
@@ -218,9 +228,16 @@ function GameContent() {
     return (
       <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
         <div className="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-md w-full border border-slate-700">
-          <h1 className="text-4xl font-bold text-center mb-8 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+          <h1 className="text-4xl font-bold text-center mb-2 text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
             Kart Bul
           </h1>
+          <div className="text-center mb-6">
+             {isConnected ? (
+                 <span className="text-xs text-green-500 font-bold px-2 py-1 bg-green-900/30 rounded-full">● SUNUCU BAĞLI</span>
+             ) : (
+                 <span className="text-xs text-red-500 font-bold px-2 py-1 bg-red-900/30 rounded-full animate-pulse">● BAĞLANTI YOK</span>
+             )}
+          </div>
           
           <div className="space-y-6">
             <input
